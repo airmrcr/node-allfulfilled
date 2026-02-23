@@ -26,7 +26,13 @@ import * as index from "../src/index.js";
 
 describe("index", () => {
   it("should only have expected named exports", () => {
-    const expected = new Set(["allFulfilled", "aggregate", "first", "last"]);
+    const expected = new Set([
+      "allFulfilled",
+      "aggregate",
+      "any",
+      "first",
+      "last",
+    ]);
     const actual = new Set(Object.keys(index));
 
     assert.deepStrictEqual(actual, expected);

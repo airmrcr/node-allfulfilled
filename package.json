@@ -1,6 +1,6 @@
 {
   "name": "allfulfilled",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Use Promise.allSettled like Promise.all",
   "homepage": "https://github.com/neocotic/node-allfulfilled",
   "bugs": {
@@ -56,20 +56,20 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
-    "@types/node": "^25.0.8",
-    "@typescript-eslint/parser": "^8.38.0",
+    "@types/node": "^25.3.0",
+    "@typescript-eslint/parser": "^8.56.0",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import-x": "^4.16.1",
     "eslint-plugin-prettier": "^5.5.3",
-    "globals": "^17.0.0",
+    "globals": "^17.3.0",
     "mkdirp": "^3.0.1",
-    "prettier": "^3.6.2",
-    "tshy": "^3.0.2",
+    "prettier": "^3.8.1",
+    "tshy": "^3.3.2",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.38.0"
+    "typescript-eslint": "^8.56.0"
   },
   "tshy": {
     "exports": {

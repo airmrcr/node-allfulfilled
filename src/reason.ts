@@ -38,26 +38,26 @@ export interface ReasonErrorMapper {
 }
 
 /**
- * Maps all reasons that any {@link Promise} was rejected with to a single {@link Error}.
+ * Reduces all reasons that any {@link Promise} was rejected with to a single {@link Error}.
  *
- * A `ReasonsErrorMapper` is only called with a non-empty array of reasons.
+ * A `ReasonsErrorReducer` is only called with a non-empty array of reasons.
  */
-export interface ReasonsErrorMapper {
+export interface ReasonsErrorReducer {
   /**
-   * Returns a single {@link Error} mapped from the specified `reasons` that any {@link Promise} was rejected with.
+   * Returns a single {@link Error} reduced from the specified `reasons` that any {@link Promise} was rejected with.
    *
    * The `reasons` provided is never empty.
    *
-   * @param reasons The reasons to be mapped to a single {@link Error}.
-   * @return The mapped {@link Error}.
+   * @param reasons The reasons to be reduced to a single {@link Error}.
+   * @return The reduced {@link Error}.
    */
   (reasons: any[]): Error;
 }
 
 const atIndex =
   (index: number) =>
-  (toError?: ReasonErrorMapper): ReasonsErrorMapper =>
-  (reasons): Error => {
+  (toError?: ReasonErrorMapper): ReasonsErrorReducer =>
+  (reasons) => {
     const reason = reasons[index >= 0 ? index : reasons.length + index];
     if (!toError) {
       return reason as Error;
@@ -66,19 +66,43 @@ const atIndex =
   };
 
 /**
- * Returns a {@link ReasonsErrorMapper} that wraps all the reasons a {@link Promise} was rejected with into an
+ * Returns a {@link ReasonsErrorReducer} that reduces all the reasons a {@link Promise} was rejected with into an
  * {@link AggregateError}.
  *
  * @param message An optional message to be used for the {@link AggregateError}.
- * @return A {@link ReasonsErrorMapper} that wraps the reasons into an {@link AggregateError}.
+ * @return A {@link ReasonsErrorReducer} that reduces the reasons into an {@link AggregateError}.
  */
 export const aggregate =
-  (message?: string): ReasonsErrorMapper =>
+  (message?: string): ReasonsErrorReducer =>
   (reasons) =>
     new AggregateError(reasons, message);
 
 /**
- * Returns a {@link ReasonsErrorMapper} that returns the first reason a {@link Promise} was rejected with as an
+ * Returns a {@link ReasonsErrorReducer} that returns any reason a {@link Promise} was rejected with as an
+ * {@link Error}, with a preference of using the first reason that is an {@link Error} to avoid calling `toError`, if
+ * specified.
+ *
+ * If `toError` is specified and the every reason is **not** an {@link Error}, `toError` will be used to map the first
+ * reason to an {@link Error}.
+ *
+ * @param toError An optional {@link ReasonErrorMapper} to be used to map any reason to an {@link Error}, if it is not
+ * already an {@link Error}.
+ * @return A {@link ReasonsErrorReducer} that returns any reason as an {@link Error}.
+ */
+export const any =
+  (toError?: ReasonErrorMapper): ReasonsErrorReducer =>
+  (reasons) => {
+    for (const reason of reasons) {
+      if (reason instanceof Error) {
+        return reason;
+      }
+    }
+
+    return toError ? toError(reasons[0]) : (reasons[0] as Error);
+  };
+
+/**
+ * Returns a {@link ReasonsErrorReducer} that returns the first reason a {@link Promise} was rejected with as an
  * {@link Error}.
  *
  * If `toError` is specified and the first reason is **not** an {@link Error}, `toError` will be used to map the first
@@ -86,12 +110,12 @@ export const aggregate =
  *
  * @param toError An optional {@link ReasonErrorMapper} to be used to map the first reason to an {@link Error}, if it is
  * not already an {@link Error}.
- * @return A {@link ReasonsErrorMapper} that returns the first reason as an {@link Error}.
+ * @return A {@link ReasonsErrorReducer} that returns the first reason as an {@link Error}.
  */
 export const first = atIndex(0);
 
 /**
- * Returns a {@link ReasonsErrorMapper} that returns the last reason a {@link Promise} was rejected with as an
+ * Returns a {@link ReasonsErrorReducer} that returns the last reason a {@link Promise} was rejected with as an
  * {@link Error}.
  *
  * If `toError` is specified and the last reason is **not** an {@link Error}, `toError` will be used to map the last
@@ -99,6 +123,6 @@ export const first = atIndex(0);
  *
  * @param toError An optional {@link ReasonErrorMapper} to be used to map the last reason to an {@link Error}, if it is
  * not already an {@link Error}.
- * @return A {@link ReasonsErrorMapper} that returns the last reason as an {@link Error}.
+ * @return A {@link ReasonsErrorReducer} that returns the last reason as an {@link Error}.
  */
 export const last = atIndex(-1);

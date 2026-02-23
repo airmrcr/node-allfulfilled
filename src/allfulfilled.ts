@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-import { type ReasonsErrorMapper, aggregate } from "./reason.js";
+import { type ReasonsErrorReducer, aggregate } from "./reason.js";
 
 /**
  * Returns a new {@link Promise} that is fulfilled with an array of fulfillment values when all the specified `promises`
@@ -30,14 +30,14 @@ import { type ReasonsErrorMapper, aggregate } from "./reason.js";
  * all rejection reasons before rejecting with a single {@link Error}.
  *
  * @param promises An array containing each {@link Promise} to be settled.
- * @param toError An optional {@link ReasonsErrorMapper} to be used to map all rejection reasons to a single
- * {@link Error}. Defaults to {@link aggregate}, which wraps all rejection reasons into an {@link AggregateError}.
+ * @param toError An optional {@link ReasonsErrorReducer} to reduce all rejection reasons to a single {@link Error}.
+ * Defaults to {@link aggregate}, which reduces all rejection reasons into an {@link AggregateError}.
  * @return A {@link Promise} that is fulfilled with an array of fulfillment values or rejected with an {@link Error}.
  */
-export const allFulfilled = async <T>(
-  promises: Iterable<Promise<T>>,
-  toError: ReasonsErrorMapper = aggregate(),
-): Promise<Awaited<T>[]> => {
+export const allFulfilled = async <T extends readonly unknown[] | []>(
+  promises: T,
+  toError: ReasonsErrorReducer = aggregate(),
+): Promise<{ -readonly [P in keyof T]: Awaited<T[P]> }> => {
   const results = await Promise.allSettled(promises);
   const { reasons, values } = results.reduce(
     (acc, result) => {
@@ -50,11 +50,11 @@ export const allFulfilled = async <T>(
     },
     {
       reasons: [] as any[],
-      values: [] as Awaited<T>[],
+      values: [] as any[],
     },
   );
   if (reasons.length > 0) {
     throw toError(reasons);
   }
-  return values;
+  return values as { -readonly [P in keyof T]: Awaited<T[P]> };
 };
