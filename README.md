@@ -27,46 +27,54 @@ fulfilled, or rejected with an `Error` if any of `promises` are rejected.
 This function behaves similarly to `Promise.all` but uses `Promise.allSettled` internally to collect all rejection
 reasons before rejecting with a single `Error`.
 
-Optionally, `toError` can be specified to map all rejection reasons to a single `Error`. Defaults to `aggregate`, which
-wraps all rejection reasons into an `AggregateError`.
+Optionally, `toError` can be specified to reduce all rejection reasons to a single `Error`. Defaults to `aggregate`,
+which reduces all rejection reasons into an `AggregateError`.
 
 #### Examples
 
 ``` javascript
 import { allFulfilled, first } from "allfulfilled";
 
-await allFulfilled([Promise.resolve(1), Promise.resolve(2), Promise.resolve(3)]);
-//=> [1, 2, 3]
+await allFulfilled([Promise.resolve(1), Promise.resolve("2"), Promise.resolve(3)]);
+//=> [1, "2", 3]
 await allFulfilled([Promise.resolve(1), Promise.reject(new Error("Oops")), Promise.resolve(3)]);
 //=> AggregateError
 await allFulfilled([Promise.resolve(1), Promise.reject(new Error("Oops")), Promise.resolve(3)], first());
 //=> Error
 ```
 
-### `ReasonsErrorMapper(reasons)`
+### `ReasonsErrorReducer(reasons)`
 
-Maps all reasons that any `Promise` was rejected with to a single `Error`.
+Reduces all reasons that any `Promise` was rejected with to a single `Error`.
 
-A `ReasonsErrorMapper` is only called with a non-empty array of reasons.
+A `ReasonsErrorReducer` is only called with a non-empty array of reasons.
 
-There are a several `ReasonsErrorMapper` function providers built-in.
+There are a several `ReasonsErrorReducer` function providers built-in.
 
 #### `aggregate([message])`
 
-Returns a `ReasonsErrorMapper` that wraps all the reasons a `Promise` was rejected with into an `AggregateError`.
+Returns a `ReasonsErrorReducer` that reduces all the reasons a `Promise` was rejected with into an `AggregateError`.
 
 Optionally, `message` can be specified for the `AggregateError`.
 
+#### `any([toError])`
+
+Returns a `ReasonsErrorReducer` that returns any reason a `Promise` was rejected with as an `Error`, with a preference
+of using the first reason that is an `Error` to avoid calling `toError`, if specified.
+
+If `toError` is specified and the every reason is **not** an `Error`, `toError` will be used to map the first reason to
+an `Error`.
+
 #### `first([toError])`
 
-Returns a `ReasonsErrorMapper` that returns the first reason a `Promise` was rejected with as an `Error`.
+Returns a `ReasonsErrorReducer` that returns the first reason a `Promise` was rejected with as an `Error`.
 
 If `toError` is specified and the first reason is **not** an `Error`, `toError` will be used to map the first reason to
 an `Error`.
 
 #### `last([toError])`
 
-Returns a `ReasonsErrorMapper` that returns the last reason a `Promise` was rejected with as an `Error`.
+Returns a `ReasonsErrorReducer` that returns the last reason a `Promise` was rejected with as an `Error`.
 
 If `toError` is specified and the last reason is **not** an `Error`, `toError` will be used to map the last reason to an
 `Error`.

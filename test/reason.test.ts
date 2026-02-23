@@ -22,7 +22,7 @@
 
 import * as assert from "node:assert";
 import { describe, it } from "node:test";
-import { aggregate, first, last } from "../src/reason.js";
+import { aggregate, any, first, last } from "../src/reason.js";
 
 describe("aggregate", () => {
   it("should return an AggregateError with the given reasons", () => {
@@ -44,6 +44,36 @@ describe("aggregate", () => {
     assert.ok(result instanceof AggregateError);
     assert.deepStrictEqual(result.errors, reasons);
     assert.strictEqual(result.message, message);
+  });
+});
+
+describe("any", () => {
+  it("should return the first reason that is an Error", () => {
+    const reasons = ["foo", new Error("bar")];
+    const mapper = any();
+    const result = mapper(reasons);
+
+    assert.strictEqual(result, reasons[1]);
+  });
+
+  it("should return the first reason if none are an Error and no mapper is provided", () => {
+    const reasons = ["foo", "bar"];
+    const mapper = any();
+    const result = mapper(reasons);
+
+    assert.strictEqual(result, reasons[0]);
+  });
+
+  it("should map the first reason if none are an Error and a mapper is provided", () => {
+    const reasons = ["foo", "bar"];
+    const toError = (reason: any) =>
+      new Error("Something went wrong", { cause: reason });
+    const mapper = any(toError);
+    const result = mapper(reasons);
+
+    assert.ok(result instanceof Error);
+    assert.strictEqual(result.cause, reasons[0]);
+    assert.strictEqual(result.message, "Something went wrong");
   });
 });
 

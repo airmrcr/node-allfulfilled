@@ -36,6 +36,17 @@ describe("allFulfilled", () => {
     assert.deepStrictEqual(result, [1, 2, 3]);
   });
 
+  it("should resolve with values when all promises are fulfilled with mixed types", async () => {
+    const promises = [
+      Promise.resolve(1),
+      Promise.resolve("2"),
+      Promise.resolve(new Date(3)),
+    ];
+    const result = await allFulfilled(promises);
+
+    assert.deepStrictEqual(result, [1, "2", new Date(3)]);
+  });
+
   describe("when any promises are rejected", () => {
     it("should reject with an AggregateError by default", async () => {
       const error1 = new Error("error 1");
