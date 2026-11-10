@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 neocotic
+ * Copyright (C) 2026 airmrcr
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,138 +21,357 @@
  */
 
 import * as assert from "node:assert";
-import { describe, it } from "node:test";
-import { aggregate, any, first, last } from "../src/reason.js";
+import { describe, it, mock } from "node:test";
+import {
+  type Reason,
+  type ReasonMapper,
+  aggregate,
+  aggregateError,
+  any,
+  castError,
+  countError,
+  first,
+  firstError,
+  last,
+  lastError,
+  preferError,
+  unknownError,
+} from "../src/reason.js";
+
+const assertAggregateError = (actual: unknown, expect: AggregateError) => {
+  assert.ok(actual instanceof AggregateError);
+  assert.deepStrictEqual(actual.errors, expect.errors);
+  assert.strictEqual(actual.message, expect.message);
+};
+
+const toAggregateError = (
+  reasons: [Reason, ...Reason[]],
+  message?: string,
+): AggregateError => new AggregateError(toErrors(reasons), message);
+
+const toErrors = (reasons: [Reason, ...Reason[]]) =>
+  reasons.map(({ error }) => error) as [Error, ...Error[]];
+
+const testMapper: ReasonMapper = (reason) =>
+  new Error("Something went wrong", { cause: reason });
+
+const toReason = (
+  original: any,
+  index: number,
+  mapper: ReasonMapper = testMapper,
+): Reason => {
+  const isOriginalError = original instanceof Error;
+  return {
+    error: isOriginalError ? original : mapper(original, index),
+    isOriginalError,
+    original,
+  };
+};
+
+const toReasons = (originals: [any, ...any[]], mapper?: ReasonMapper) =>
+  originals.map((original, index) => toReason(original, index, mapper)) as [
+    Reason,
+    ...Reason[],
+  ];
 
 describe("aggregate", () => {
-  it("should return an AggregateError with the given reasons", () => {
-    const reasons = [new Error("foo"), new Error("bar")];
-    const mapper = aggregate();
-    const result = mapper(reasons);
+  it("should return an AggregateError with the given reasons mapped to an Error when not originally an Error", () => {
+    const reasons = toReasons([new Error("foo"), "bar"]);
+    const reducer = aggregate();
+    const result = reducer(reasons);
 
-    assert.ok(result instanceof AggregateError);
-    assert.deepStrictEqual(result.errors, reasons);
-    assert.strictEqual(result.message, "");
+    assertAggregateError(result, toAggregateError(reasons));
   });
 
-  it("should return an AggregateError with the given reasons and message", () => {
-    const reasons = [new Error("foo"), new Error("bar")];
-    const message = "Something went wrong";
-    const mapper = aggregate(message);
-    const result = mapper(reasons);
+  it("should return an AggregateError with the given message and reasons mapped to an Error when not originally an Error", () => {
+    const reasons = toReasons([new Error("foo"), "bar"]);
+    const message = "Something really went wrong";
+    const reducer = aggregate(message);
+    const result = reducer(reasons);
 
-    assert.ok(result instanceof AggregateError);
-    assert.deepStrictEqual(result.errors, reasons);
-    assert.strictEqual(result.message, message);
+    assertAggregateError(result, toAggregateError(reasons, message));
+  });
+});
+
+describe("aggregateError", () => {
+  it("should return an AggregateError with the given reasons mapped to an Error when not originally an Error", () => {
+    const reasons = toReasons([new Error("foo"), "bar"]);
+    const reducer = aggregateError();
+    const result = reducer(reasons);
+
+    assertAggregateError(result, toAggregateError(reasons));
+  });
+
+  it("should return an AggregateError with the given message and reasons mapped to an Error when not originally an Error", () => {
+    const reasons = toReasons([new Error("foo"), "bar"]);
+    const message = "Something really went wrong";
+    const reducer = aggregateError(message);
+    const result = reducer(reasons);
+
+    assertAggregateError(result, toAggregateError(reasons, message));
   });
 });
 
 describe("any", () => {
-  it("should return the first reason that is an Error", () => {
-    const reasons = ["foo", new Error("bar")];
-    const mapper = any();
-    const result = mapper(reasons);
+  it("should return any reason as-is that was originally an Error", () => {
+    const reasons = toReasons(["foo", new Error("bar")]);
+    const reducer = any();
+    const result = reducer(reasons);
 
-    assert.strictEqual(result, reasons[1]);
+    assert.strictEqual(result, reasons[1]!.original);
+    assert.strictEqual(result, reasons[1]!.error);
   });
 
-  it("should return the first reason if none are an Error and no mapper is provided", () => {
-    const reasons = ["foo", "bar"];
-    const mapper = any();
-    const result = mapper(reasons);
+  it("should return the first reason mapped to an Error when none were originally an Error", () => {
+    const reasons = toReasons(["foo", "bar"]);
+    const reducer = any();
+    const result = reducer(reasons);
 
-    assert.strictEqual(result, reasons[0]);
+    assert.strictEqual(result, reasons[0].error);
+    assert.notStrictEqual(result, reasons[0].original);
   });
 
-  it("should map the first reason if none are an Error and a mapper is provided", () => {
-    const reasons = ["foo", "bar"];
-    const toError = (reason: any) =>
-      new Error("Something went wrong", { cause: reason });
-    const mapper = any(toError);
-    const result = mapper(reasons);
+  describe("when an override mapper is provided", () => {
+    it("should return any reason as-is that was originally an Error", () => {
+      const reasons = toReasons(["foo", new Error("bar")]);
+      const mapper = mock.fn(
+        (reason: any) => new Error("Oops", { cause: reason }),
+      );
+      const reducer = any(mapper);
+      const result = reducer(reasons);
 
-    assert.ok(result instanceof Error);
-    assert.strictEqual(result.cause, reasons[0]);
-    assert.strictEqual(result.message, "Something went wrong");
+      assert.strictEqual(mapper.mock.callCount(), 0);
+      assert.strictEqual(result, reasons[1]!.original);
+      assert.strictEqual(result, reasons[1]!.error);
+    });
+
+    it("should map the first reason mapped to an Error using the override mapper when none were originally an Error", () => {
+      const reasons = toReasons(["foo", "bar"]);
+      const mapper = mock.fn(
+        (reason: any) => new Error("Oops", { cause: reason }),
+      );
+      const reducer = any(mapper);
+      const result = reducer(reasons);
+
+      assert.strictEqual(mapper.mock.callCount(), 1);
+      assert.deepStrictEqual(mapper.mock.calls[0]!.arguments, [
+        reasons[0].original,
+      ]);
+      assert.strictEqual(result, mapper.mock.calls[0]!.result);
+    });
+  });
+});
+
+describe("castError", () => {
+  it("should return the given reason cast as an Error", () => {
+    const mapper = castError();
+
+    for (const [index, reason] of ["foo", new Error("bar")].entries()) {
+      const result = mapper(reason, index);
+
+      assert.strictEqual(result, reason);
+    }
+  });
+});
+
+describe("countError", () => {
+  it("should use the first reducer if only a single reason given", () => {
+    const reasons = toReasons(["foo"]);
+    const reducer = countError(firstError(), aggregateError());
+    const result = reducer(reasons);
+
+    assert.strictEqual(result, reasons[0].error);
+    assert.notStrictEqual(result, reasons[0].original);
+  });
+
+  it("should use the second reducer if multiple reasons given", () => {
+    const reasons = toReasons([new Error("foo"), "bar"]);
+    const reducer = countError(firstError(), aggregateError());
+    const result = reducer(reasons);
+
+    assertAggregateError(result, toAggregateError(reasons));
   });
 });
 
 describe("first", () => {
-  it("should return the first reason if it is an Error", () => {
-    const reasons = [new Error("foo"), new Error("bar")];
-    const mapper = first();
-    const result = mapper(reasons);
+  it("should return the first reason as-is when originally an Error", () => {
+    const reasons = toReasons([new Error("foo"), new Error("bar")]);
+    const reducer = first();
+    const result = reducer(reasons);
 
-    assert.strictEqual(result, reasons[0]);
+    assert.strictEqual(result, reasons[0].original);
+    assert.strictEqual(result, reasons[0].error);
   });
 
-  it("should return the first reason if it is not an Error and no mapper is provided", () => {
-    const reasons = ["foo", "bar"];
-    const mapper = first();
-    const result = mapper(reasons);
+  it("should return the first reason mapped to an Error when not originally an Error", () => {
+    const reasons = toReasons(["foo", "bar"]);
+    const reducer = first();
+    const result = reducer(reasons);
 
-    assert.strictEqual(result, reasons[0]);
+    assert.strictEqual(result, reasons[0].error);
+    assert.notStrictEqual(result, reasons[0].original);
   });
 
-  it("should map the first reason if it is not an Error and a mapper is provided", () => {
-    const reasons = ["foo", "bar"];
-    const toError = (reason: any) =>
-      new Error("Something went wrong", { cause: reason });
-    const mapper = first(toError);
-    const result = mapper(reasons);
+  describe("when an override mapper is provided", () => {
+    it("should return the first reason as-is when originally an Error", () => {
+      const reasons = toReasons([new Error("foo"), "bar"]);
+      const mapper = mock.fn(
+        (reason: any) => new Error("Oops", { cause: reason }),
+      );
+      const reducer = first(mapper);
+      const result = reducer(reasons);
 
-    assert.ok(result instanceof Error);
-    assert.strictEqual(result.cause, reasons[0]);
-    assert.strictEqual(result.message, "Something went wrong");
+      assert.strictEqual(mapper.mock.callCount(), 0);
+      assert.strictEqual(result, reasons[0].error);
+      assert.strictEqual(result, reasons[0].original);
+    });
+
+    it("should return the first reason mapped to an Error using the override mapper when not originally an Error", () => {
+      const reasons = toReasons(["foo", "bar"]);
+      const mapper = mock.fn(
+        (reason: any) => new Error("Oops", { cause: reason }),
+      );
+      const reducer = first(mapper);
+      const result = reducer(reasons);
+
+      assert.strictEqual(mapper.mock.callCount(), 1);
+      assert.deepStrictEqual(mapper.mock.calls[0]!.arguments, [
+        reasons[0].original,
+      ]);
+      assert.strictEqual(result, mapper.mock.calls[0]!.result);
+    });
+  });
+});
+
+describe("firstError", () => {
+  it("should return the first reason as-is when originally an Error", () => {
+    const reasons = toReasons([new Error("foo"), new Error("bar")]);
+    const reducer = firstError();
+    const result = reducer(reasons);
+
+    assert.strictEqual(result, reasons[0].original);
+    assert.strictEqual(result, reasons[0].error);
   });
 
-  it("should not map the first reason if it is an Error even if a mapper is provided", () => {
-    const reasons = [new Error("foo"), "bar"];
-    const toError = (reason: any) =>
-      new Error("Something went wrong", { cause: reason });
-    const mapper = first(toError);
-    const result = mapper(reasons);
+  it("should return the first reason mapped to an Error when not originally an Error", () => {
+    const reasons = toReasons(["foo", "bar"]);
+    const reducer = firstError();
+    const result = reducer(reasons);
 
-    assert.strictEqual(result, reasons[0]);
+    assert.strictEqual(result, reasons[0].error);
+    assert.notStrictEqual(result, reasons[0].original);
   });
 });
 
 describe("last", () => {
-  it("should return the last reason if it is an Error", () => {
-    const reasons = [new Error("foo"), new Error("bar")];
-    const mapper = last();
-    const result = mapper(reasons);
+  it("should return the last reason as-is when originally an Error", () => {
+    const reasons = toReasons([new Error("foo"), new Error("bar")]);
+    const reducer = last();
+    const result = reducer(reasons);
 
-    assert.strictEqual(result, reasons[1]);
+    assert.strictEqual(result, reasons[1]!.original);
+    assert.strictEqual(result, reasons[1]!.error);
   });
 
-  it("should return the last reason if it is not an Error and no mapper is provided", () => {
-    const reasons = ["foo", "bar"];
-    const mapper = last();
-    const result = mapper(reasons);
+  it("should return the last reason mapped to an Error when not originally an Error", () => {
+    const reasons = toReasons(["foo", "bar"]);
+    const reducer = last();
+    const result = reducer(reasons);
 
-    assert.strictEqual(result, reasons[1]);
+    assert.strictEqual(result, reasons[1]!.error);
+    assert.notStrictEqual(result, reasons[1]!.original);
   });
 
-  it("should map the last reason if it is not an Error and a mapper is provided", () => {
-    const reasons = ["foo", "bar"];
-    const toError = (reason: any) =>
-      new Error("Something went wrong", { cause: reason });
-    const mapper = last(toError);
-    const result = mapper(reasons);
+  describe("when an override mapper is provided", () => {
+    it("should return the last reason as-is when originally an Error", () => {
+      const reasons = toReasons(["foo", new Error("bar")]);
+      const mapper = mock.fn(
+        (reason: any) => new Error("Oops", { cause: reason }),
+      );
+      const reducer = last(mapper);
+      const result = reducer(reasons);
+
+      assert.strictEqual(mapper.mock.callCount(), 0);
+      assert.strictEqual(result, reasons[1]!.error);
+      assert.strictEqual(result, reasons[1]!.original);
+    });
+
+    it("should return the last reason mapped to an Error using the override mapper when not originally an Error", () => {
+      const reasons = toReasons(["foo", "bar"]);
+      const mapper = mock.fn(
+        (reason: any) => new Error("Oops", { cause: reason }),
+      );
+      const reducer = last(mapper);
+      const result = reducer(reasons);
+
+      assert.strictEqual(mapper.mock.callCount(), 1);
+      assert.deepStrictEqual(mapper.mock.calls[0]!.arguments, [
+        reasons[1]!.original,
+      ]);
+      assert.strictEqual(result, mapper.mock.calls[0]!.result);
+    });
+  });
+});
+
+describe("lastError", () => {
+  it("should return the last reason as-is when originally an Error", () => {
+    const reasons = toReasons([new Error("foo"), new Error("bar")]);
+    const reducer = lastError();
+    const result = reducer(reasons);
+
+    assert.strictEqual(result, reasons[1]!.original);
+    assert.strictEqual(result, reasons[1]!.error);
+  });
+
+  it("should return the last reason mapped to an Error when not originally an Error", () => {
+    const reasons = toReasons(["foo", "bar"]);
+    const reducer = lastError();
+    const result = reducer(reasons);
+
+    assert.strictEqual(result, reasons[1]!.error);
+    assert.notStrictEqual(result, reasons[1]!.original);
+  });
+});
+
+describe("preferError", () => {
+  it("should return any reason as-is that was originally an Error", () => {
+    const reasons = toReasons(["foo", new Error("bar")]);
+    const reducer = preferError();
+    const result = reducer(reasons);
+
+    assert.strictEqual(result, reasons[1]!.original);
+    assert.strictEqual(result, reasons[1]!.error);
+  });
+
+  it("should return the first reason mapped to an Error when none were originally an Error", () => {
+    const reasons = toReasons(["foo", "bar"]);
+    const reducer = preferError();
+    const result = reducer(reasons);
+
+    assert.strictEqual(result, reasons[0].error);
+    assert.notStrictEqual(result, reasons[0].original);
+  });
+});
+
+describe("unknownError", () => {
+  it("should return an Error with the given reason set as the cause", () => {
+    const reason = "foo";
+    const mapper = unknownError();
+    const result = mapper(reason, 0);
 
     assert.ok(result instanceof Error);
-    assert.strictEqual(result.cause, reasons[1]);
-    assert.strictEqual(result.message, "Something went wrong");
+    assert.strictEqual(result.cause, reason);
+    assert.strictEqual(result.message, "");
   });
 
-  it("should not map the last reason if it is an Error even if a mapper is provided", () => {
-    const reasons = ["foo", new Error("bar")];
-    const toError = (reason: any) =>
-      new Error("Something went wrong", { cause: reason });
-    const mapper = last(toError);
-    const result = mapper(reasons);
+  it("should return an Error with the given message and reason set as the cause", () => {
+    const reason = "foo";
+    const message = "Oops";
+    const mapper = unknownError(message);
+    const result = mapper(reason, 0);
 
-    assert.strictEqual(result, reasons[1]);
+    assert.ok(result instanceof Error);
+    assert.strictEqual(result.cause, reason);
+    assert.strictEqual(result.message, message);
   });
 });
