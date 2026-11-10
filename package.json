@@ -2,22 +2,22 @@
   "name": "allfulfilled",
   "version": "0.2.0",
   "description": "Use Promise.allSettled like Promise.all",
-  "homepage": "https://github.com/neocotic/node-allfulfilled",
+  "homepage": "https://github.com/airmrcr/node-allfulfilled",
   "bugs": {
-    "url": "https://github.com/neocotic/node-allfulfilled/issues"
+    "url": "https://github.com/airmrcr/node-allfulfilled/issues"
   },
   "author": {
-    "name": "neocotic",
-    "url": "https://github.com/neocotic"
+    "name": "airmrcr",
+    "url": "https://github.com/airmrcr"
   },
   "funding": [
     {
       "type": "individual",
-      "url": "https://github.com/sponsors/neocotic"
+      "url": "https://github.com/sponsors/airmrcr"
     },
     {
       "type": "patreon",
-      "url": "https://www.patreon.com/neocotic"
+      "url": "https://www.patreon.com/airmrcr"
     }
   ],
   "license": "MIT",
@@ -26,7 +26,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/neocotic/node-allfulfilled.git"
+    "url": "https://github.com/airmrcr/node-allfulfilled.git"
   },
   "exports": {
     ".": {
@@ -55,20 +55,21 @@
     "verify": "npm run build && npm run lint && npm test"
   },
   "devDependencies": {
-    "@eslint/js": "^9.32.0",
-    "@types/node": "^25.3.0",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.6",
     "@typescript-eslint/parser": "^8.56.0",
-    "eslint": "^9.32.0",
+    "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-import-resolver-node": "^0.4.0",
+    "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import-x": "^4.16.1",
     "eslint-plugin-prettier": "^5.5.3",
     "globals": "^17.3.0",
     "mkdirp": "^3.0.1",
     "prettier": "^3.8.1",
-    "tshy": "^3.3.2",
+    "tshy": "^4.1.4",
     "tsx": "^4.20.3",
-    "typescript": "^5.8.3",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.56.0"
   },
   "tshy": {

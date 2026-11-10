@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 neocotic
+ * Copyright (C) 2026 airmrcr
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,10 +28,18 @@ describe("index", () => {
   it("should only have expected named exports", () => {
     const expected = new Set([
       "allFulfilled",
+      "bindAllFulfilled",
       "aggregate",
+      "aggregateError",
       "any",
+      "castError",
+      "countError",
       "first",
+      "firstError",
       "last",
+      "lastError",
+      "preferError",
+      "unknownError",
     ]);
     const actual = new Set(Object.keys(index));
 
